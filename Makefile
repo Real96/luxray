@@ -17,7 +17,7 @@ include $(DEVKITPRO)/libnx/switch_rules
 #
 # Knobs:
 #   ENABLE_DEBUG=1     debug build (drops -DNDEBUG)
-#   NO_EXCEPTIONS=0    re-enable C++ exceptions (default: off, see below)
+#   NO_EXCEPTIONS=1    disable C++ exceptions (default: enabled — the code throws)
 #   BOOT2=1            ship flags/boot2.flag so the sysmodule autostarts at boot
 #   COMPAT_SHIM=0      stop force-including include/lx_compat.h (default: on)
 #---------------------------------------------------------------------------------
@@ -44,7 +44,7 @@ APP_VERSION := $(APP_VERSION)-$(GITREV)
 endif
 
 NO_ICON       = TRUE
-NO_EXCEPTIONS ?= 1
+NO_EXCEPTIONS ?= 0
 COMPAT_SHIM   ?= 1
 
 # sha256sum is coreutils-only; macOS ships shasum
@@ -73,11 +73,18 @@ ifeq ($(COMPAT_SHIM),1)
 CFLAGS += -include $(TOPDIR)/include/lx_compat.h
 endif
 
-CXXFLAGS := $(CFLAGS) -std=c++17 -fno-rtti
+# -std=gnu++17, NOT -std=c++17: the strict-ANSI dialect defines __STRICT_ANSI__,
+# which sets libnx's __BSD_VISIBLE to 0 and hides the whole BSD sockets surface
+# (gethostbyname, etc.). The gnu dialect is also what the original repo and every
+# devkitPro template use. -fno-rtti is deliberately NOT set — the UI code may use
+# typeid/dynamic_cast, and RTTI costs almost nothing here.
+CXXFLAGS := $(CFLAGS) -std=gnu++17
 
-# C++ exceptions are implemented on top of TLS slots, which is precisely what
-# HOS 21.0.0 broke, and unwinding tables are dead weight in a memory-starved
-# sysmodule. Set NO_EXCEPTIONS=0 if the codebase actually uses try/catch.
+# C++ exceptions: the ABI concern (they ride on TLS slots, which HOS 21.0.0
+# reshuffled) is already handled by requiring libnx >= 4.10, so on a current
+# toolchain they are safe. This codebase throws and catches (ntp.cpp, system.cpp,
+# main.cpp), so they must stay on. Set NO_EXCEPTIONS=1 only if you first remove
+# every throw/try/catch — e.g. for a stripped headless sysmodule build.
 ifeq ($(NO_EXCEPTIONS),1)
 CXXFLAGS += -fno-exceptions
 endif

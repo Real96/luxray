@@ -61,6 +61,29 @@ git push
 git tag r0.2.0 && git push origin r0.2.0
 ```
 
+## The one source edit you still have to make: source/main.cpp
+
+`SocketInitConfig` lost its `.bsdsockets_version` field in libnx 3.x+ (libnx now
+picks the BSD protocol version itself from the running firmware). No build-system
+shim can add a struct member back, so this is a genuine two-minute edit.
+
+In the `SocketInitConfig` initializer inside `__appInit()`:
+
+1. **Delete** the `.bsdsockets_version = <n>,` line (it's the first designator).
+2. **Change** the closing `.sb_efficiency = 1};` to also set the two fields that
+   replaced it:
+
+```cpp
+        .sb_efficiency    = 1,
+        .num_bsd_sessions = 3,
+        .bsd_service_type = BsdServiceType_User,
+    };
+```
+
+Order matters in C++ designated initializers: those two go last, after
+`sb_efficiency`, which is where they sit in the struct. Leaving them unset makes
+`num_bsd_sessions` default to 0, which is not a valid session count.
+
 ## The trick that makes this build without touching your source
 
 `Makefile` force-includes `include/lx_compat.h` into every translation unit
