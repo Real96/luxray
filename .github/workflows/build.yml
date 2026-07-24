@@ -1,0 +1,57 @@
+name: build
+
+on:
+  push:
+    branches: [ master, main ]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: devkitpro/devkita64:latest
+
+    steps:
+      - name: Checkout (without submodules)
+        uses: actions/checkout@v4
+        with:
+          submodules: false
+
+      - name: Trust the workspace
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      # .gitmodules points at git@github.com:3096/libluxio.git, which no
+      # anonymous clone (CI included) can reach. Rewrite it to https at fetch
+      # time so this works without changing the repo; better fix is to change
+      # the URL in .gitmodules.
+      - name: Fetch submodules over https
+        run: |
+          git config --global url."https://github.com/".insteadOf "git@github.com:"
+          git submodule update --init --recursive
+
+      - name: Update toolchain
+        run: |
+          sudo dkp-pacman -Syu --noconfirm
+          sudo dkp-pacman -S --needed --noconfirm switch-dev switch-tools
+
+      - name: Show versions
+        run: |
+          aarch64-none-elf-gcc --version | head -n1
+          ls "$DEVKITPRO/libnx"
+
+      - name: Build
+        run: make -j"$(nproc)"
+
+      - name: Package
+        run: make release
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: luxray-${{ github.sha }}
+          path: |
+            luxray.nsp
+            luxray.nro
+            luxray.elf
+            release/**/*.zip
+          if-no-files-found: error

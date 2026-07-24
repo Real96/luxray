@@ -1,0 +1,69 @@
+name: release
+
+# Push a tag and GitHub builds both archives and attaches them to the release.
+# This is the practical way to get the zips without a local toolchain:
+#
+#   git tag r0.2.0 && git push origin r0.2.0
+#
+on:
+  push:
+    tags: [ 'r*', 'v*', '[0-9]+.[0-9]+.[0-9]+' ]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version string used in the archive names'
+        required: true
+        default: 'r0.2.0'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    container: devkitpro/devkita64:latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: false
+
+      - name: Trust the workspace
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      # .gitmodules points at git@github.com:3096/libluxio.git, which CI cannot
+      # clone. Rewrite to https at fetch time.
+      - name: Fetch submodules over https
+        run: |
+          git config --global url."https://github.com/".insteadOf "git@github.com:"
+          git submodule update --init --recursive
+
+      - name: Update toolchain
+        run: |
+          sudo dkp-pacman -Syu --noconfirm
+          sudo dkp-pacman -S --needed --noconfirm switch-dev switch-tools zip unzip
+
+      - name: Resolve version
+        id: ver
+        run: |
+          if [ -n "${{ github.event.inputs.version }}" ]; then
+            echo "version=${{ github.event.inputs.version }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build and package
+        env:
+          VERSION: ${{ steps.ver.outputs.version }}
+        run: |
+          chmod +x package.sh
+          ./package.sh
+
+      - name: Attach archives to the release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/luxray-${{ steps.ver.outputs.version }}.zip
+            dist/luxray-${{ steps.ver.outputs.version }}-ovlloader.zip
+          generate_release_notes: true
+          fail_on_unmatched_files: true

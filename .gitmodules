@@ -1,3 +1,3 @@
 [submodule "libs/libluxio"]
 	path = libs/libluxio
-	url = git@github.com:3096/libluxio.git
+	url = https://github.com/3096/libluxio.git
