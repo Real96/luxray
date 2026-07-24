@@ -42,7 +42,8 @@ jobs:
       - name: Build and package (both program IDs + launcher, upstream layout)
         run: |
           chmod +x package.sh
-          VERSION="ci-${GITHUB_SHA::8}" ./package.sh
+          SHORT_SHA=$(echo "$GITHUB_SHA" | cut -c1-8)
+          VERSION="ci-$SHORT_SHA" ./package.sh
 
       - name: Upload release archive
         uses: actions/upload-artifact@v4

@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/sh
 #
 # package.sh — builds Luxray and assembles the release archive in the EXACT
 # layout of the upstream r0.1.0 release:
@@ -11,11 +11,12 @@
 # (luxray.json -> 0195, luxray_405.json -> 0405). The launcher picks which
 # program ID to launch based on docked vs handheld.
 #
-# Run inside a devkitPro environment, or with no local toolchain:
+# POSIX sh — runs under dash, which is what GitHub Actions uses for container
+# steps. Run inside a devkitPro environment, or with no local toolchain:
 #   docker run --rm -v "$PWD:/src" -w /src devkitpro/devkita64:latest \
-#     bash -lc 'git config --global --add safe.directory /src && ./package.sh'
+#     sh -c 'git config --global --add safe.directory /src && ./package.sh'
 #
-set -euo pipefail
+set -eu
 
 VERSION="${VERSION:-r0.2.0}"
 ID_DOCKED="0100000000000195"
@@ -36,8 +37,6 @@ grep -rqs "HidNpadButton_A" "$DEVKITPRO/libnx/include" || {
     echo "ERROR: libnx is pre-4.0. Luxray needs >= 4.10.0 for Atmosphere 1.10+ / HOS 21+."
     exit 1
 }
-command -v npdmtool  >/dev/null || { echo "ERROR: npdmtool not found (dkp-pacman -S switch-tools)"; exit 1; }
-command -v build_pfs0 >/dev/null || { echo "ERROR: build_pfs0 not found (dkp-pacman -S switch-tools)"; exit 1; }
 
 say "Submodules"
 git config --global url."https://github.com/".insteadOf "git@github.com:" || true
