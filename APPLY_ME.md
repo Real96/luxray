@@ -96,7 +96,8 @@ system module, where `padUpdate()` would read as permanently idle.
 Covered: `KEY_*`, `HidControllerID`, `CONTROLLER_*`, `hidScanInput`,
 `hidKeysDown/Held/Up`, `JoystickPosition`, `hidJoystickRead`, `touchPosition`,
 `hidTouchRead`, `hidTouchCount`, `pmshellLaunchProcess`, `FsStorageId_*`,
-`fatalSimple`, `kernelAboveX`, and `SocketInitConfig` / `socketInitialize`
+`fatalSimple`, `kernelAboveX`, `ApmPerformanceMode_Docked/_Handheld` (the libnx
+4.0 rename to `_Boost`/`_Normal`), and `SocketInitConfig` / `socketInitialize`
 (the `.bsdsockets_version` removal).
 
 This is scaffolding. It gets you a green build now; port the call sites properly

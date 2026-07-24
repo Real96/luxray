@@ -209,6 +209,19 @@ static inline void fatalSimple(Result rc)
 #define kernelAbove700() hosversionAtLeast(7, 0, 0)
 #endif
 
+/* libnx 4.0 renamed the ApmPerformanceMode enumerators to their official names:
+ *   ApmPerformanceMode_Handheld -> ApmPerformanceMode_Normal  (undocked)
+ *   ApmPerformanceMode_Docked   -> ApmPerformanceMode_Boost   (docked, boost clocks)
+ * appletGetPerformanceMode() still returns the value by-value, so only the names
+ * changed. These aren't real enumerators on current libnx, so defining them as
+ * aliases is safe. */
+#ifndef ApmPerformanceMode_Docked
+#define ApmPerformanceMode_Docked   ApmPerformanceMode_Boost
+#endif
+#ifndef ApmPerformanceMode_Handheld
+#define ApmPerformanceMode_Handheld ApmPerformanceMode_Normal
+#endif
+
 #ifdef __cplusplus
 }
 #endif
