@@ -61,28 +61,23 @@ git push
 git tag r0.2.0 && git push origin r0.2.0
 ```
 
-## The one source edit you still have to make: source/main.cpp
+## Socket init (main.cpp) — now handled for you, no edit needed
 
-`SocketInitConfig` lost its `.bsdsockets_version` field in libnx 3.x+ (libnx now
-picks the BSD protocol version itself from the running firmware). No build-system
-shim can add a struct member back, so this is a genuine two-minute edit.
+Earlier this needed a hand-edit: current libnx removed `SocketInitConfig::bsdsockets_version`
+(the BSD protocol version is auto-selected from firmware now) and added
+`num_bsd_sessions` + `bsd_service_type`, so the 2020-era initializer that sets
+`.bsdsockets_version` wouldn't compile.
 
-In the `SocketInitConfig` initializer inside `__appInit()`:
+The shim now absorbs this. `include/lx_compat.h` defines a drop-in config type
+that still carries `.bsdsockets_version` and a wrapper that maps it onto the real
+libnx call, filling in `num_bsd_sessions = 3` and `bsd_service_type = User` when
+your initializer leaves them unset. Two `#define`s point the source's
+`SocketInitConfig` / `socketInitialize` at the shim. `socketInitializeDefault()`
+and `socketExit()` are deliberately left alone.
 
-1. **Delete** the `.bsdsockets_version = <n>,` line (it's the first designator).
-2. **Change** the closing `.sb_efficiency = 1};` to also set the two fields that
-   replaced it:
-
-```cpp
-        .sb_efficiency    = 1,
-        .num_bsd_sessions = 3,
-        .bsd_service_type = BsdServiceType_User,
-    };
-```
-
-Order matters in C++ designated initializers: those two go last, after
-`sb_efficiency`, which is where they sit in the struct. Leaving them unset makes
-`num_bsd_sessions` default to 0, which is not a valid session count.
+You don't need to touch `main.cpp`. If you ever want the real type back (e.g.
+after porting the call site by hand), build with `-DLX_NO_SOCKET_SHIM` or set
+`COMPAT_SHIM=0`.
 
 ## The trick that makes this build without touching your source
 
@@ -101,7 +96,8 @@ system module, where `padUpdate()` would read as permanently idle.
 Covered: `KEY_*`, `HidControllerID`, `CONTROLLER_*`, `hidScanInput`,
 `hidKeysDown/Held/Up`, `JoystickPosition`, `hidJoystickRead`, `touchPosition`,
 `hidTouchRead`, `hidTouchCount`, `pmshellLaunchProcess`, `FsStorageId_*`,
-`fatalSimple`, `kernelAboveX`.
+`fatalSimple`, `kernelAboveX`, and `SocketInitConfig` / `socketInitialize`
+(the `.bsdsockets_version` removal).
 
 This is scaffolding. It gets you a green build now; port the call sites properly
 later, then build with `COMPAT_SHIM=0` and delete the header.

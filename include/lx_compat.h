@@ -212,3 +212,68 @@ static inline void fatalSimple(Result rc)
 #ifdef __cplusplus
 }
 #endif
+
+/* ------------------------------------------------------------------------ */
+/* SocketInitConfig (libnx 3.x removed .bsdsockets_version)                  */
+/* ------------------------------------------------------------------------ */
+/*
+ * Current libnx dropped SocketInitConfig::bsdsockets_version — the BSD protocol
+ * version is now chosen internally from the running firmware — and added
+ * num_bsd_sessions + bsd_service_type. A 2020-era designated initializer that
+ * still sets .bsdsockets_version therefore fails to compile, and no macro can
+ * add a struct member back.
+ *
+ * So instead this provides a drop-in type that DOES carry the old field, and a
+ * wrapper that copies the still-valid fields onto a real SocketInitConfig,
+ * ignores the version, and supplies sane defaults for the two new fields when
+ * the old initializer left them unset (0). The two #defines at the bottom then
+ * point the source's `SocketInitConfig` / `socketInitialize(...)` at the shim.
+ *
+ * Whole-token replacement, so socketInitializeDefault() and socketExit() are
+ * untouched, and the wrapper below — parsed before the #defines exist — keeps
+ * calling the real functions. Define LX_NO_SOCKET_SHIM to opt out.
+ */
+#ifndef LX_NO_SOCKET_SHIM
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+typedef struct {
+    u32            bsdsockets_version;   /* accepted, ignored (auto-selected now) */
+    u32            tcp_tx_buf_size;
+    u32            tcp_rx_buf_size;
+    u32            tcp_tx_buf_max_size;
+    u32            tcp_rx_buf_max_size;
+    u32            udp_tx_buf_size;
+    u32            udp_rx_buf_size;
+    u32            sb_efficiency;
+    u32            num_bsd_sessions;
+    BsdServiceType bsd_service_type;
+} LxSocketInitConfig;
+
+static inline Result lxSocketInitialize(const LxSocketInitConfig *c)
+{
+    SocketInitConfig real = {0};
+    real.tcp_tx_buf_size     = c->tcp_tx_buf_size;
+    real.tcp_rx_buf_size     = c->tcp_rx_buf_size;
+    real.tcp_tx_buf_max_size = c->tcp_tx_buf_max_size;
+    real.tcp_rx_buf_max_size = c->tcp_rx_buf_max_size;
+    real.udp_tx_buf_size     = c->udp_tx_buf_size;
+    real.udp_rx_buf_size     = c->udp_rx_buf_size;
+    real.sb_efficiency       = c->sb_efficiency;
+    real.num_bsd_sessions    = c->num_bsd_sessions ? c->num_bsd_sessions : 3;
+    real.bsd_service_type    = c->bsd_service_type ? c->bsd_service_type
+                                                   : BsdServiceType_User;
+    (void)c->bsdsockets_version;   /* libnx now derives this from hosversion */
+    return socketInitialize(&real);
+}
+
+#ifdef __cplusplus
+}
+#endif
+
+#define SocketInitConfig  LxSocketInitConfig
+#define socketInitialize  lxSocketInitialize
+
+#endif /* LX_NO_SOCKET_SHIM */
