@@ -39,19 +39,15 @@ jobs:
           aarch64-none-elf-gcc --version | head -n1
           ls "$DEVKITPRO/libnx"
 
-      - name: Build
-        run: make -j"$(nproc)"
+      - name: Build and package (both program IDs + launcher, upstream layout)
+        run: |
+          chmod +x package.sh
+          VERSION="ci-${GITHUB_SHA::8}" ./package.sh
 
-      - name: Package
-        run: make release
-
-      - name: Upload artifacts
+      - name: Upload release archive
         uses: actions/upload-artifact@v4
         with:
           name: luxray-${{ github.sha }}
           path: |
-            luxray.nsp
-            luxray.nro
-            luxray.elf
-            release/**/*.zip
+            dist/*.zip
           if-no-files-found: error

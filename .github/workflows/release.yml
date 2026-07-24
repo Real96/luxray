@@ -59,11 +59,10 @@ jobs:
           chmod +x package.sh
           ./package.sh
 
-      - name: Attach archives to the release
+      - name: Attach archive to the release
         uses: softprops/action-gh-release@v2
         with:
           files: |
             dist/luxray-${{ steps.ver.outputs.version }}.zip
-            dist/luxray-${{ steps.ver.outputs.version }}-ovlloader.zip
           generate_release_notes: true
           fail_on_unmatched_files: true
